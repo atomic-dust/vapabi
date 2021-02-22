@@ -1,12 +1,12 @@
 #![allow(unknown_lints)]
 
 use std::io;
-use {ethabi, docopt, hex};
-use ethabi::Hash;
+use {vapabi, docopt, hex};
+use vapabi::Hash;
 
 error_chain! {
 	links {
-		Ethabi(ethabi::Error, ethabi::ErrorKind);
+		Vapabi(vapabi::Error, vapabi::ErrorKind);
 	}
 
 	foreign_links {

@@ -1,9 +1,9 @@
-use ethabi;
+use vapabi;
 use proc_macro2::TokenStream;
 
 use super::{
 	input_names, template_param_type, rust_type, get_template_names, to_token, from_template_param,
-	to_ethabi_param_vec,
+	to_vapabi_param_vec,
 };
 
 /// Structure used to generate contract's constructor interface.
@@ -14,8 +14,8 @@ pub struct Constructor {
 	recreate_inputs: TokenStream,
 }
 
-impl<'a> From<&'a ethabi::Constructor> for Constructor {
-	fn from(c: &'a ethabi::Constructor) -> Self {
+impl<'a> From<&'a vapabi::Constructor> for Constructor {
+	fn from(c: &'a vapabi::Constructor) -> Self {
 		// [param0, hello_world, param2]
 		let input_names = input_names(&c.inputs);
 
@@ -37,7 +37,7 @@ impl<'a> From<&'a ethabi::Constructor> for Constructor {
 		let inputs_definitions = input_names.iter().zip(template_names.iter())
 			.map(|(param_name, template_name)| quote! { #param_name: #template_name });
 
-		let inputs_definitions = Some(quote! { code: ethabi::Bytes }).into_iter()
+		let inputs_definitions = Some(quote! { code: vapabi::Bytes }).into_iter()
 			.chain(inputs_definitions)
 			.collect();
 
@@ -50,7 +50,7 @@ impl<'a> From<&'a ethabi::Constructor> for Constructor {
 			inputs_declarations,
 			inputs_definitions,
 			tokenize,
-			recreate_inputs: to_ethabi_param_vec(&c.inputs),
+			recreate_inputs: to_vapabi_param_vec(&c.inputs),
 		}
 	}
 }
@@ -65,8 +65,8 @@ impl Constructor {
 
 		quote! {
 			/// Encodes a call to contract's constructor.
-			pub fn constructor<#(#declarations),*>(#(#definitions),*) -> ethabi::Bytes {
-				let c = ethabi::Constructor {
+			pub fn constructor<#(#declarations),*>(#(#definitions),*) -> vapabi::Bytes {
+				let c = vapabi::Constructor {
 					inputs: #recreate_inputs,
 				};
 				let tokens = vec![#(#tokenize),*];
@@ -78,21 +78,21 @@ impl Constructor {
 
 #[cfg(test)]
 mod tests {
-	use ethabi;
+	use vapabi;
 	use super::Constructor;
 
 	#[test]
 	fn test_no_params() {
-		let ethabi_constructor = ethabi::Constructor {
+		let vapabi_constructor = vapabi::Constructor {
 			inputs: vec![],
 		};
 
-		let c = Constructor::from(&ethabi_constructor);
+		let c = Constructor::from(&vapabi_constructor);
 
 		let expected = quote! {
 			/// Encodes a call to contract's constructor.
-			pub fn constructor<>(code: ethabi::Bytes) -> ethabi::Bytes {
-				let c = ethabi::Constructor {
+			pub fn constructor<>(code: vapabi::Bytes) -> vapabi::Bytes {
+				let c = vapabi::Constructor {
 					inputs: vec![],
 				};
 				let tokens = vec![];
@@ -105,27 +105,27 @@ mod tests {
 
 	#[test]
 	fn test_one_param() {
-		let ethabi_constructor = ethabi::Constructor {
+		let vapabi_constructor = vapabi::Constructor {
 			inputs: vec![
-				ethabi::Param {
+				vapabi::Param {
 					name: "foo".into(),
-					kind: ethabi::ParamType::Uint(256),
+					kind: vapabi::ParamType::Uint(256),
 				}
 			],
 		};
 
-		let c = Constructor::from(&ethabi_constructor);
+		let c = Constructor::from(&vapabi_constructor);
 
 		let expected = quote! {
 			/// Encodes a call to contract's constructor.
-			pub fn constructor<T0: Into<ethabi::Uint> >(code: ethabi::Bytes, foo: T0) -> ethabi::Bytes {
-				let c = ethabi::Constructor {
-					inputs: vec![ethabi::Param {
+			pub fn constructor<T0: Into<vapabi::Uint> >(code: vapabi::Bytes, foo: T0) -> vapabi::Bytes {
+				let c = vapabi::Constructor {
+					inputs: vec![vapabi::Param {
 						name: "foo".to_owned(),
-						kind: ethabi::ParamType::Uint(256usize)
+						kind: vapabi::ParamType::Uint(256usize)
 					}],
 				};
-				let tokens = vec![ethabi::Token::Uint(foo.into())];
+				let tokens = vec![vapabi::Token::Uint(foo.into())];
 				c.encode_input(code, &tokens).expect(INTERNAL_ERR)
 			}
 		};

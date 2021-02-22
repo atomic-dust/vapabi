@@ -1,11 +1,11 @@
 [package]
-name = "ethabi"
+name = "vapabi"
 version = "9.0.1"
 authors = ["Parity Technologies <admin@parity.io>"]
-homepage = "https://github.com/paritytech/ethabi"
+homepage = "https://github.com/rust-vapory/vapabi"
 license = "MIT/Apache-2.0"
-keywords = ["ethereum", "eth", "abi", "solidity", "cli"]
-description = "Easy to use conversion of ethereum contract calls to bytecode."
+keywords = ["vapory", "vap", "abi", "solidity", "cli"]
+description = "Easy to use conversion of vapory contract calls to bytecode."
 
 [dependencies]
 rustc-hex = "2.0"
@@ -14,7 +14,7 @@ serde_json = "1.0"
 serde_derive = "1.0"
 tiny-keccak = "1.4"
 error-chain = { version = "0.12", default-features = false }
-ethereum-types = "0.8.0"
+vapory-types = "0.8.0"
 
 [dev-dependencies]
 hex-literal = "0.2.0"
@@ -24,5 +24,5 @@ paste = "0.1.5"
 backtrace = ["error-chain/backtrace"]
 
 [badges]
-travis-ci = { repository = "paritytech/ethabi", branch = "master" }
-coveralls = { repository = "paritytech/ethabi", branch = "master" }
+travis-ci = { repository = "rust-vapory/vapabi", branch = "master" }
+coveralls = { repository = "rust-vapory/vapabi", branch = "master" }

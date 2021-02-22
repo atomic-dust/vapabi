@@ -1,4 +1,4 @@
-use {syn, ethabi};
+use {syn, vapabi};
 use heck::{SnakeCase, CamelCase};
 use proc_macro2::TokenStream;
 use syn::export::Span;
@@ -18,8 +18,8 @@ pub struct Event {
 	anonymous: bool,
 }
 
-impl<'a> From<&'a ethabi::Event> for Event {
-	fn from(e: &'a ethabi::Event) -> Self {
+impl<'a> From<&'a vapabi::Event> for Event {
+	fn from(e: &'a vapabi::Event) -> Self {
 		let names: Vec<_> = e.inputs
 			.iter()
 			.enumerate()
@@ -71,7 +71,7 @@ impl<'a> From<&'a ethabi::Event> for Event {
 		let template_names: Vec<_> = get_template_names(&topic_kinds);
 
 		let filter_declarations: Vec<_> = topic_kinds.iter().zip(template_names.iter())
-			.map(|(kind, template_name)| quote! { #template_name: Into<ethabi::Topic<#kind>> })
+			.map(|(kind, template_name)| quote! { #template_name: Into<vapabi::Topic<#kind>> })
 			.collect();
 
 		let filter_definitions: Vec<_> = topic_names.iter().zip(template_names.iter())
@@ -79,7 +79,7 @@ impl<'a> From<&'a ethabi::Event> for Event {
 			.collect();
 
 		// The number of parameters that creates a filter which matches anything.
-		let wildcard_filter_params: Vec<_> = filter_definitions.iter().map(|_| quote! { ethabi::Topic::Any })
+		let wildcard_filter_params: Vec<_> = filter_definitions.iter().map(|_| quote! { vapabi::Topic::Any })
 			.collect();
 
 		let filter_init: Vec<_> = topic_names.iter().zip(e.inputs.iter().filter(|p| p.indexed))
@@ -99,7 +99,7 @@ impl<'a> From<&'a ethabi::Event> for Event {
 			let indexed = x.indexed;
 
 			quote! {
-				ethabi::EventParam {
+				vapabi::EventParam {
 					name: #name.to_owned(),
 					kind: #kind,
 					indexed: #indexed
@@ -151,19 +151,19 @@ impl Event {
 
 		quote! {
 			pub mod #name {
-				use ethabi;
+				use vapabi;
 				use super::INTERNAL_ERR;
 
-				pub fn event() -> ethabi::Event {
-					ethabi::Event {
+				pub fn event() -> vapabi::Event {
+					vapabi::Event {
 						name: #name_as_string.into(),
 						inputs: #recreate_inputs_quote,
 						anonymous: #anonymous,
 					}
 				}
 
-				pub fn filter<#(#filter_declarations),*>(#(#filter_definitions),*) -> ethabi::TopicFilter {
-					let raw = ethabi::RawTopicFilter {
+				pub fn filter<#(#filter_declarations),*>(#(#filter_definitions),*) -> vapabi::TopicFilter {
+					let raw = vapabi::RawTopicFilter {
 						#(#filter_init)*
 						..Default::default()
 					};
@@ -172,11 +172,11 @@ impl Event {
 					e.filter(raw).expect(INTERNAL_ERR)
 				}
 
-				pub fn wildcard_filter() -> ethabi::TopicFilter {
+				pub fn wildcard_filter() -> vapabi::TopicFilter {
 					filter(#(#wildcard_filter_params),*)
 				}
 
-				pub fn parse_log(log: ethabi::RawLog) -> ethabi::Result<super::super::logs::#camel_name> {
+				pub fn parse_log(log: vapabi::RawLog) -> vapabi::Result<super::super::logs::#camel_name> {
 					let e = event();
 					let mut log = e.parse_log(log)?.params.into_iter();
 					let result = super::super::logs::#camel_name {
@@ -191,18 +191,18 @@ impl Event {
 
 #[cfg(test)]
 mod tests {
-	use ethabi;
+	use vapabi;
 	use super::Event;
 
 	#[test]
 	fn test_empty_log() {
-		let ethabi_event = ethabi::Event {
+		let vapabi_event = vapabi::Event {
 			name: "hello".into(),
 			inputs: vec![],
 			anonymous: false,
 		};
 
-		let e = Event::from(&ethabi_event);
+		let e = Event::from(&vapabi_event);
 
 		let expected = quote! {
 			#[derive(Debug, Clone, PartialEq)]
@@ -214,29 +214,29 @@ mod tests {
 
 	#[test]
 	fn test_empty_event() {
-		let ethabi_event = ethabi::Event {
+		let vapabi_event = vapabi::Event {
 			name: "hello".into(),
 			inputs: vec![],
 			anonymous: false,
 		};
 
-		let e = Event::from(&ethabi_event);
+		let e = Event::from(&vapabi_event);
 
 		let expected = quote! {
 			pub mod hello {
-				use ethabi;
+				use vapabi;
 				use super::INTERNAL_ERR;
 
-				pub fn event() -> ethabi::Event {
-					ethabi::Event {
+				pub fn event() -> vapabi::Event {
+					vapabi::Event {
 						name: "Hello".into(),
 						inputs: vec![],
 						anonymous: false,
 					}
 				}
 
-				pub fn filter<>() -> ethabi::TopicFilter {
-					let raw = ethabi::RawTopicFilter {
+				pub fn filter<>() -> vapabi::TopicFilter {
+					let raw = vapabi::RawTopicFilter {
 						..Default::default()
 					};
 
@@ -244,11 +244,11 @@ mod tests {
 					e.filter(raw).expect(INTERNAL_ERR)
 				}
 
-				pub fn wildcard_filter() -> ethabi::TopicFilter {
+				pub fn wildcard_filter() -> vapabi::TopicFilter {
 					filter()
 				}
 
-				pub fn parse_log(log: ethabi::RawLog) -> ethabi::Result<super::super::logs::Hello> {
+				pub fn parse_log(log: vapabi::RawLog) -> vapabi::Result<super::super::logs::Hello> {
 					let e = event();
 					let mut log = e.parse_log(log)?.params.into_iter();
 					let result = super::super::logs::Hello {};
@@ -262,38 +262,38 @@ mod tests {
 
 	#[test]
 	fn test_event_with_one_input() {
-		let ethabi_event = ethabi::Event {
+		let vapabi_event = vapabi::Event {
 			name: "one".into(),
-			inputs: vec![ethabi::EventParam {
+			inputs: vec![vapabi::EventParam {
 				name: "foo".into(),
-				kind: ethabi::ParamType::Address,
+				kind: vapabi::ParamType::Address,
 				indexed: true
 			}],
 			anonymous: false,
 		};
 
-		let e = Event::from(&ethabi_event);
+		let e = Event::from(&vapabi_event);
 
 		let expected = quote! {
 			pub mod one {
-				use ethabi;
+				use vapabi;
 				use super::INTERNAL_ERR;
 
-				pub fn event() -> ethabi::Event {
-					ethabi::Event {
+				pub fn event() -> vapabi::Event {
+					vapabi::Event {
 						name: "One".into(),
-						inputs: vec![ethabi::EventParam {
+						inputs: vec![vapabi::EventParam {
 							name: "foo".to_owned(),
-							kind: ethabi::ParamType::Address,
+							kind: vapabi::ParamType::Address,
 							indexed: true
 						}],
 						anonymous: false,
 					}
 				}
 
-				pub fn filter<T0: Into<ethabi::Topic<ethabi::Address>>>(foo: T0) -> ethabi::TopicFilter {
-					let raw = ethabi::RawTopicFilter {
-						topic0: foo.into().map(|i| ethabi::Token::Address(i)),
+				pub fn filter<T0: Into<vapabi::Topic<vapabi::Address>>>(foo: T0) -> vapabi::TopicFilter {
+					let raw = vapabi::RawTopicFilter {
+						topic0: foo.into().map(|i| vapabi::Token::Address(i)),
 						..Default::default()
 					};
 
@@ -301,11 +301,11 @@ mod tests {
 					e.filter(raw).expect(INTERNAL_ERR)
 				}
 
-				pub fn wildcard_filter() -> ethabi::TopicFilter {
-					filter(ethabi::Topic::Any)
+				pub fn wildcard_filter() -> vapabi::TopicFilter {
+					filter(vapabi::Topic::Any)
 				}
 
-				pub fn parse_log(log: ethabi::RawLog) -> ethabi::Result<super::super::logs::One> {
+				pub fn parse_log(log: vapabi::RawLog) -> vapabi::Result<super::super::logs::One> {
 					let e = event();
 					let mut log = e.parse_log(log)?.params.into_iter();
 					let result = super::super::logs::One {
@@ -321,22 +321,22 @@ mod tests {
 
 	#[test]
 	fn test_log_with_one_field() {
-		let ethabi_event = ethabi::Event {
+		let vapabi_event = vapabi::Event {
 			name: "one".into(),
-			inputs: vec![ethabi::EventParam {
+			inputs: vec![vapabi::EventParam {
 				name: "foo".into(),
-				kind: ethabi::ParamType::Address,
+				kind: vapabi::ParamType::Address,
 				indexed: false
 			}],
 			anonymous: false,
 		};
 
-		let e = Event::from(&ethabi_event);
+		let e = Event::from(&vapabi_event);
 
 		let expected = quote! {
 			#[derive(Debug, Clone, PartialEq)]
 			pub struct One {
-				pub foo: ethabi::Address
+				pub foo: vapabi::Address
 			}
 		};
 
@@ -345,32 +345,32 @@ mod tests {
 
 	#[test]
 	fn test_log_with_multiple_field() {
-		let ethabi_event = ethabi::Event {
+		let vapabi_event = vapabi::Event {
 			name: "many".into(),
-			inputs: vec![ethabi::EventParam {
+			inputs: vec![vapabi::EventParam {
 				name: "foo".into(),
-				kind: ethabi::ParamType::Address,
+				kind: vapabi::ParamType::Address,
 				indexed: false
-			}, ethabi::EventParam {
+			}, vapabi::EventParam {
 				name: "bar".into(),
-				kind: ethabi::ParamType::Array(Box::new(ethabi::ParamType::String)),
+				kind: vapabi::ParamType::Array(Box::new(vapabi::ParamType::String)),
 				indexed: false
-			}, ethabi::EventParam {
+			}, vapabi::EventParam {
 				name: "xyz".into(),
-				kind: ethabi::ParamType::Uint(256),
+				kind: vapabi::ParamType::Uint(256),
 				indexed: false
 			}],
 			anonymous: false,
 		};
 
-		let e = Event::from(&ethabi_event);
+		let e = Event::from(&vapabi_event);
 
 		let expected = quote! {
 			#[derive(Debug, Clone, PartialEq)]
 			pub struct Many {
-				pub foo: ethabi::Address,
+				pub foo: vapabi::Address,
 				pub bar: Vec<String>,
-				pub xyz: ethabi::Uint
+				pub xyz: vapabi::Uint
 			}
 		};
 

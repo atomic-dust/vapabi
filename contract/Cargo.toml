@@ -1,8 +1,8 @@
 [package]
-name = "ethabi-contract"
+name = "vapabi-contract"
 version = "9.0.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-homepage = "https://github.com/paritytech/ethabi"
+homepage = "https://github.com/rust-vapory/vapabi"
 license = "MIT/Apache-2.0"
-keywords = ["ethereum", "eth", "abi", "solidity", "derive"]
-description = "Easy to use conversion of ethereum contract calls to bytecode."
+keywords = ["vapory", "vap", "abi", "solidity", "derive"]
+description = "Easy to use conversion of vapory contract calls to bytecode."

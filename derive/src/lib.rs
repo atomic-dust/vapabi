@@ -6,7 +6,7 @@ extern crate syn;
 #[macro_use]
 extern crate quote;
 extern crate heck;
-extern crate ethabi;
+extern crate vapabi;
 
 mod constructor;
 mod contract;
@@ -17,19 +17,19 @@ use std::{env, fs};
 use std::path::PathBuf;
 use heck::SnakeCase;
 use syn::export::Span;
-use ethabi::{Result, ResultExt, Contract, Param, ParamType};
+use vapabi::{Result, ResultExt, Contract, Param, ParamType};
 
-const ERROR_MSG: &str = "`derive(EthabiContract)` failed";
+const ERROR_MSG: &str = "`derive(VapabiContract)` failed";
 
-#[proc_macro_derive(EthabiContract, attributes(ethabi_contract_options))]
-pub fn ethabi_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+#[proc_macro_derive(VapabiContract, attributes(vapabi_contract_options))]
+pub fn vapabi_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let ast = syn::parse(input).expect(ERROR_MSG);
-	let gen = impl_ethabi_derive(&ast).expect(ERROR_MSG);
+	let gen = impl_vapabi_derive(&ast).expect(ERROR_MSG);
 	gen.into()
 }
 
-fn impl_ethabi_derive(ast: &syn::DeriveInput) -> Result<proc_macro2::TokenStream> {
-	let options = get_options(&ast.attrs, "ethabi_contract_options")?;
+fn impl_vapabi_derive(ast: &syn::DeriveInput) -> Result<proc_macro2::TokenStream> {
+	let options = get_options(&ast.attrs, "vapabi_contract_options")?;
 	let path = get_option(&options, "path")?;
 	let normalized_path = normalize_path(&path)?;
 	let source_file = fs::File::open(&normalized_path)
@@ -80,34 +80,34 @@ fn normalize_path(relative_path: &str) -> Result<PathBuf> {
 	Ok(path)
 }
 
-fn to_syntax_string(param_type: &ethabi::ParamType) -> proc_macro2::TokenStream {
+fn to_syntax_string(param_type: &vapabi::ParamType) -> proc_macro2::TokenStream {
 	match *param_type {
-		ParamType::Address => quote! { ethabi::ParamType::Address },
-		ParamType::Bytes => quote! { ethabi::ParamType::Bytes },
-		ParamType::Int(x) => quote! { ethabi::ParamType::Int(#x) },
-		ParamType::Uint(x) => quote! { ethabi::ParamType::Uint(#x) },
-		ParamType::Bool => quote! { ethabi::ParamType::Bool },
-		ParamType::String => quote! { ethabi::ParamType::String },
+		ParamType::Address => quote! { vapabi::ParamType::Address },
+		ParamType::Bytes => quote! { vapabi::ParamType::Bytes },
+		ParamType::Int(x) => quote! { vapabi::ParamType::Int(#x) },
+		ParamType::Uint(x) => quote! { vapabi::ParamType::Uint(#x) },
+		ParamType::Bool => quote! { vapabi::ParamType::Bool },
+		ParamType::String => quote! { vapabi::ParamType::String },
 		ParamType::Array(ref param_type) => {
 			let param_type_quote = to_syntax_string(param_type);
-			quote! { ethabi::ParamType::Array(Box::new(#param_type_quote)) }
+			quote! { vapabi::ParamType::Array(Box::new(#param_type_quote)) }
 		},
-		ParamType::FixedBytes(x) => quote! { ethabi::ParamType::FixedBytes(#x) },
+		ParamType::FixedBytes(x) => quote! { vapabi::ParamType::FixedBytes(#x) },
 		ParamType::FixedArray(ref param_type, ref x) => {
 			let param_type_quote = to_syntax_string(param_type);
-			quote! { ethabi::ParamType::FixedArray(Box::new(#param_type_quote), #x) }
+			quote! { vapabi::ParamType::FixedArray(Box::new(#param_type_quote), #x) }
 		}
 	}
 }
 
-fn to_ethabi_param_vec<'a, P: 'a>(params: P) -> proc_macro2::TokenStream
+fn to_vapabi_param_vec<'a, P: 'a>(params: P) -> proc_macro2::TokenStream
 	where P: IntoIterator<Item = &'a Param>
 {
 	let p = params.into_iter().map(|x| {
 		let name = &x.name;
 		let kind = to_syntax_string(&x.kind);
 		quote! {
-			ethabi::Param {
+			vapabi::Param {
 				name: #name.to_owned(),
 				kind: #kind
 			}
@@ -119,12 +119,12 @@ fn to_ethabi_param_vec<'a, P: 'a>(params: P) -> proc_macro2::TokenStream
 
 fn rust_type(input: &ParamType) -> proc_macro2::TokenStream {
 	match *input {
-		ParamType::Address => quote! { ethabi::Address },
-		ParamType::Bytes => quote! { ethabi::Bytes },
-		ParamType::FixedBytes(32) => quote! { ethabi::Hash },
+		ParamType::Address => quote! { vapabi::Address },
+		ParamType::Bytes => quote! { vapabi::Bytes },
+		ParamType::FixedBytes(32) => quote! { vapabi::Hash },
 		ParamType::FixedBytes(size) => quote! { [u8; #size] },
-		ParamType::Int(_) => quote! { ethabi::Int },
-		ParamType::Uint(_) => quote! { ethabi::Uint },
+		ParamType::Int(_) => quote! { vapabi::Int },
+		ParamType::Uint(_) => quote! { vapabi::Uint },
 		ParamType::Bool => quote! { bool },
 		ParamType::String => quote! { String },
 		ParamType::Array(ref kind) => {
@@ -142,12 +142,12 @@ fn template_param_type(input: &ParamType, index: usize) -> proc_macro2::TokenStr
 	let t_ident = syn::Ident::new(&format!("T{}", index), Span::call_site());
 	let u_ident = syn::Ident::new(&format!("U{}", index), Span::call_site());
 	match *input {
-		ParamType::Address => quote! { #t_ident: Into<ethabi::Address> },
-		ParamType::Bytes => quote! { #t_ident: Into<ethabi::Bytes> },
-		ParamType::FixedBytes(32) => quote! { #t_ident: Into<ethabi::Hash> },
+		ParamType::Address => quote! { #t_ident: Into<vapabi::Address> },
+		ParamType::Bytes => quote! { #t_ident: Into<vapabi::Bytes> },
+		ParamType::FixedBytes(32) => quote! { #t_ident: Into<vapabi::Hash> },
 		ParamType::FixedBytes(size) => quote! { #t_ident: Into<[u8; #size]> },
-		ParamType::Int(_) => quote! { #t_ident: Into<ethabi::Int> },
-		ParamType::Uint(_) => quote! { #t_ident: Into<ethabi::Uint> },
+		ParamType::Int(_) => quote! { #t_ident: Into<vapabi::Int> },
+		ParamType::Uint(_) => quote! { #t_ident: Into<vapabi::Uint> },
 		ParamType::Bool => quote! { #t_ident: Into<bool> },
 		ParamType::String => quote! { #t_ident: Into<String> },
 		ParamType::Array(ref kind) => {
@@ -175,13 +175,13 @@ fn from_template_param(input: &ParamType, name: &syn::Ident) -> proc_macro2::Tok
 
 fn to_token(name: &proc_macro2::TokenStream, kind: &ParamType) -> proc_macro2::TokenStream {
 	match *kind {
-		ParamType::Address => quote! { ethabi::Token::Address(#name) },
-		ParamType::Bytes => quote! { ethabi::Token::Bytes(#name) },
-		ParamType::FixedBytes(_) => quote! { ethabi::Token::FixedBytes(#name.as_ref().to_vec()) },
-		ParamType::Int(_) => quote! { ethabi::Token::Int(#name) },
-		ParamType::Uint(_) => quote! { ethabi::Token::Uint(#name) },
-		ParamType::Bool => quote! { ethabi::Token::Bool(#name) },
-		ParamType::String => quote! { ethabi::Token::String(#name) },
+		ParamType::Address => quote! { vapabi::Token::Address(#name) },
+		ParamType::Bytes => quote! { vapabi::Token::Bytes(#name) },
+		ParamType::FixedBytes(_) => quote! { vapabi::Token::FixedBytes(#name.as_ref().to_vec()) },
+		ParamType::Int(_) => quote! { vapabi::Token::Int(#name) },
+		ParamType::Uint(_) => quote! { vapabi::Token::Uint(#name) },
+		ParamType::Bool => quote! { vapabi::Token::Bool(#name) },
+		ParamType::String => quote! { vapabi::Token::String(#name) },
 		ParamType::Array(ref kind) => {
 			let inner_name = quote! { inner };
 			let inner_loop = to_token(&inner_name, kind);
@@ -189,7 +189,7 @@ fn to_token(name: &proc_macro2::TokenStream, kind: &ParamType) -> proc_macro2::T
 				// note the double {{
 				{
 					let v = #name.into_iter().map(|#inner_name| #inner_loop).collect();
-					ethabi::Token::Array(v)
+					vapabi::Token::Array(v)
 				}
 			}
 		}
@@ -200,7 +200,7 @@ fn to_token(name: &proc_macro2::TokenStream, kind: &ParamType) -> proc_macro2::T
 				// note the double {{
 				{
 					let v = #name.into_iter().map(|#inner_name| #inner_loop).collect();
-					ethabi::Token::FixedArray(v)
+					vapabi::Token::FixedArray(v)
 				}
 			}
 		},
@@ -216,7 +216,7 @@ fn from_token(kind: &ParamType, token: &proc_macro2::TokenStream) -> proc_macro2
 				let mut result = [0u8; 32];
 				let v = #token.to_fixed_bytes().expect(INTERNAL_ERR);
 				result.copy_from_slice(&v);
-				ethabi::Hash::from(result)
+				vapabi::Hash::from(result)
 			}
 		},
 		ParamType::FixedBytes(size) => {

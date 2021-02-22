@@ -5,7 +5,7 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate error_chain;
-extern crate ethabi;
+extern crate vapabi;
 extern crate tiny_keccak;
 
 mod error;
@@ -14,23 +14,23 @@ use std::fs::File;
 use std::env;
 use docopt::Docopt;
 use hex::{ToHex, FromHex};
-use ethabi::param_type::{ParamType, Reader};
-use ethabi::token::{Token, Tokenizer, StrictTokenizer, LenientTokenizer};
-use ethabi::{encode, decode, Contract, Function, Event, Hash};
+use vapabi::param_type::{ParamType, Reader};
+use vapabi::token::{Token, Tokenizer, StrictTokenizer, LenientTokenizer};
+use vapabi::{encode, decode, Contract, Function, Event, Hash};
 use error::{Error, ErrorKind, ResultExt};
 use tiny_keccak::Keccak;
 
-pub const ETHABI: &str = r#"
-Ethereum ABI coder.
+pub const VAPABI: &str = r#"
+Vapory ABI coder.
   Copyright 2016-2018 Parity Technologies (UK) Limited
 
 Usage:
-    ethabi encode function <abi-path> <function-name> [-p <param>]... [-l | --lenient]
-    ethabi encode params [-v <type> <param>]... [-l | --lenient]
-    ethabi decode function <abi-path> <function-name> <data>
-    ethabi decode params [-t <type>]... <data>
-    ethabi decode log <abi-path> <event-name-or-signature> [-l <topic>]... <data>
-    ethabi -h | --help
+    vapabi encode function <abi-path> <function-name> [-p <param>]... [-l | --lenient]
+    vapabi encode params [-v <type> <param>]... [-l | --lenient]
+    vapabi decode function <abi-path> <function-name> <data>
+    vapabi decode params [-t <type>]... <data>
+    vapabi decode log <abi-path> <event-name-or-signature> [-l <topic>]... <data>
+    vapabi -h | --help
 
 Options:
     -h, --help         Display this message and exit.
@@ -79,7 +79,7 @@ fn print_err(err: &Error) {
 }
 
 fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
-	let args: Args = Docopt::new(ETHABI)
+	let args: Args = Docopt::new(VAPABI)
 		.and_then(|d| d.argv(command).deserialize())?;
 
 	if args.cmd_encode && args.cmd_function {
@@ -241,7 +241,7 @@ mod tests {
 
 	#[test]
 	fn simple_encode() {
-		let command = "ethabi encode params -v bool 1".split(" ");
+		let command = "vapabi encode params -v bool 1".split(" ");
 		let expected = "0000000000000000000000000000000000000000000000000000000000000001";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
@@ -250,49 +250,49 @@ mod tests {
 	#[test]
 	#[ignore]
 	fn int_encode() {
-		let command = "ethabi encode paramas -v int256 -2 --lenient".split(" ");
+		let command = "vapabi encode paramas -v int256 -2 --lenient".split(" ");
 		let expected = "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn multi_encode() {
-		let command = "ethabi encode params -v bool 1 -v string gavofyork -v bool 0".split(" ");
+		let command = "vapabi encode params -v bool 1 -v string gavofyork -v bool 0".split(" ");
 		let expected = "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000096761766f66796f726b0000000000000000000000000000000000000000000000";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn array_encode() {
-		let command = "ethabi encode params -v bool[] [1,0,false]".split(" ");
+		let command = "vapabi encode params -v bool[] [1,0,false]".split(" ");
 		let expected = "00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn abi_encode() {
-		let command = "ethabi encode function ../res/test.abi foo -p 1".split(" ");
+		let command = "vapabi encode function ../res/test.abi foo -p 1".split(" ");
 		let expected = "455575780000000000000000000000000000000000000000000000000000000000000001";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn simple_decode() {
-		let command = "ethabi decode params -t bool 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
+		let command = "vapabi decode params -t bool 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
 		let expected = "bool true";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn int_decode() {
-		let command = "ethabi decode params -t int256 fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe".split(" ");
+		let command = "vapabi decode params -t int256 fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe".split(" ");
 		let expected = "int256 fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn multi_decode() {
-		let command = "ethabi decode params -t bool -t string -t bool 00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000096761766f66796f726b0000000000000000000000000000000000000000000000".split(" ");
+		let command = "vapabi decode params -t bool -t string -t bool 00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000096761766f66796f726b0000000000000000000000000000000000000000000000".split(" ");
 		let expected =
 "bool true
 string gavofyork
@@ -302,21 +302,21 @@ bool false";
 
 	#[test]
 	fn array_decode() {
-		let command = "ethabi decode params -t bool[] 00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".split(" ");
+		let command = "vapabi decode params -t bool[] 00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".split(" ");
 		let expected = "bool[] [true,false,false]";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn abi_decode() {
-		let command = "ethabi decode function ../res/foo.abi bar 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
+		let command = "vapabi decode function ../res/foo.abi bar 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
 		let expected = "bool true";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn log_decode() {
-		let command = "ethabi decode log ../res/event.abi Event -l 0000000000000000000000000000000000000000000000000000000000000001 0000000000000000000000004444444444444444444444444444444444444444".split(" ");
+		let command = "vapabi decode log ../res/event.abi Event -l 0000000000000000000000000000000000000000000000000000000000000001 0000000000000000000000004444444444444444444444444444444444444444".split(" ");
 		let expected =
 "a true
 b 4444444444444444444444444444444444444444";
@@ -325,7 +325,7 @@ b 4444444444444444444444444444444444444444";
 
 	#[test]
 	fn log_decode_signature() {
-		let command = "ethabi decode log ../res/event.abi Event(bool,address) -l 0000000000000000000000000000000000000000000000000000000000000001 0000000000000000000000004444444444444444444444444444444444444444".split(" ");
+		let command = "vapabi decode log ../res/event.abi Event(bool,address) -l 0000000000000000000000000000000000000000000000000000000000000001 0000000000000000000000004444444444444444444444444444444444444444".split(" ");
 		let expected =
 "a true
 b 4444444444444444444444444444444444444444";

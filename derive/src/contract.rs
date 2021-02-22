@@ -1,4 +1,4 @@
-use ethabi;
+use vapabi;
 use proc_macro2::TokenStream;
 use constructor::Constructor;
 use function::Function;
@@ -11,8 +11,8 @@ pub struct Contract {
 	events: Vec<Event>,
 }
 
-impl<'a> From<&'a ethabi::Contract> for Contract {
-	fn from(c: &'a ethabi::Contract) -> Self {
+impl<'a> From<&'a vapabi::Contract> for Contract {
+	fn from(c: &'a vapabi::Contract) -> Self {
 		Contract {
 			constructor: c.constructor.as_ref().map(Into::into),
 			functions: c.functions().map(Into::into).collect(),
@@ -29,8 +29,8 @@ impl Contract {
 		let events: Vec<_> = self.events.iter().map(Event::generate_event).collect();
 		let logs: Vec<_> = self.events.iter().map(Event::generate_log).collect();
 		quote! {
-			use ethabi;
-			const INTERNAL_ERR: &'static str = "`ethabi_derive` internal error";
+			use vapabi;
+			const INTERNAL_ERR: &'static str = "`vapabi_derive` internal error";
 
 			#constructor
 
@@ -49,7 +49,7 @@ impl Contract {
 			/// Contract's logs.
 			pub mod logs {
 				use super::INTERNAL_ERR;
-				use ethabi;
+				use vapabi;
 				#(#logs)*
 			}
 		}
@@ -58,23 +58,23 @@ impl Contract {
 
 #[cfg(test)]
 mod test {
-	use ethabi;
+	use vapabi;
 	use super::Contract;
 
 	#[test]
 	fn test_no_body() {
-		let ethabi_contract = ethabi::Contract {
+		let vapabi_contract = vapabi::Contract {
 			constructor: None,
 			functions: Default::default(),
 			events: Default::default(),
 			fallback: false,
 		};
 
-		let c = Contract::from(&ethabi_contract);
+		let c = Contract::from(&vapabi_contract);
 
 		let expected = quote! {
-			use ethabi;
-			const INTERNAL_ERR: &'static str = "`ethabi_derive` internal error";
+			use vapabi;
+			const INTERNAL_ERR: &'static str = "`vapabi_derive` internal error";
 
 			/// Contract's functions.
 			pub mod functions {
@@ -89,7 +89,7 @@ mod test {
 			/// Contract's logs.
 			pub mod logs {
 				use super::INTERNAL_ERR;
-				use ethabi;
+				use vapabi;
 			}
 		};
 

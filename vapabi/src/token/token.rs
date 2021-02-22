@@ -1,9 +1,9 @@
-//! Ethereum ABI params.
+//! Vapory ABI params.
 use std::fmt;
 use hex::ToHex;
 use {ParamType, Address, FixedBytes, Bytes, Uint};
 
-/// Ethereum ABI params.
+/// Vapory ABI params.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
 	/// Address.

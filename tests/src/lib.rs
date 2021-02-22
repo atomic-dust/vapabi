@@ -4,7 +4,7 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 
-use ethabi_contract::use_contract;
+use vapabi_contract::use_contract;
 
 use_contract!(eip20, "../res/eip20.abi");
 use_contract!(constructor, "../res/constructor.abi");
@@ -16,7 +16,7 @@ use_contract!(test_rust_keywords, "../res/test_rust_keywords.abi");
 #[cfg(test)]
 mod tests {
 	use rustc_hex::ToHex;
-	use ethabi::{Address, Uint};
+	use vapabi::{Address, Uint};
 	use hex_literal::hex;
 	use crate::{validators, eip20};
 

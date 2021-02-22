@@ -17,7 +17,7 @@ pub trait ParseLog {
 	fn parse_log(&self, log: RawLog) -> Result<Self::Log>;
 }
 
-/// Ethereum log.
+/// Vapory log.
 #[derive(Debug, PartialEq, Clone)]
 pub struct RawLog {
 	/// Indexed event params are represented as log topics.

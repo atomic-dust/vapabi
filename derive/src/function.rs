@@ -1,11 +1,11 @@
-use {syn, ethabi};
+use {syn, vapabi};
 use heck::SnakeCase;
 use proc_macro2::TokenStream;
 use syn::export::Span;
 
 use super::{
 	input_names, template_param_type, rust_type, get_template_names, from_template_param, to_token,
-	to_ethabi_param_vec, get_output_kinds, from_token
+	to_vapabi_param_vec, get_output_kinds, from_token
 };
 
 struct TemplateParam {
@@ -32,7 +32,7 @@ struct Inputs {
 	tokenize: Vec<TokenStream>,
 	/// Template params.
 	template_params: Vec<TemplateParam>,
-	/// Quote used to recreate `Vec<ethabi::Param>`
+	/// Quote used to recreate `Vec<vapabi::Param>`
 	recreate_quote: TokenStream,
 }
 
@@ -41,7 +41,7 @@ struct Outputs {
 	implementation: TokenStream,
 	/// Decode result.
 	result: TokenStream,
-	/// Quote used to recreate `Vec<ethabi::Param>`.
+	/// Quote used to recreate `Vec<vapabi::Param>`.
 	recreate_quote: TokenStream,
 }
 
@@ -57,8 +57,8 @@ pub struct Function {
 	constant: bool,
 }
 
-impl<'a> From<&'a ethabi::Function> for Function {
-	fn from(f: &'a ethabi::Function) -> Self {
+impl<'a> From<&'a vapabi::Function> for Function {
+	fn from(f: &'a vapabi::Function) -> Self {
 		// [param0, hello_world, param2]
 		let input_names = input_names(&f.inputs);
 
@@ -122,12 +122,12 @@ impl<'a> From<&'a ethabi::Function> for Function {
 			inputs: Inputs {
 				tokenize,
 				template_params,
-				recreate_quote: to_ethabi_param_vec(&f.inputs),
+				recreate_quote: to_vapabi_param_vec(&f.inputs),
 			},
 			outputs: Outputs {
 				implementation: output_implementation,
 				result: output_result,
-				recreate_quote: to_ethabi_param_vec(&f.outputs),
+				recreate_quote: to_vapabi_param_vec(&f.outputs),
 			},
 			constant: f.constant,
 		}
@@ -150,11 +150,11 @@ impl Function {
 
 		quote! {
 			pub mod #module_name {
-				use ethabi;
+				use vapabi;
 				use super::INTERNAL_ERR;
 
-				fn function() -> ethabi::Function {
-					ethabi::Function {
+				fn function() -> vapabi::Function {
+					vapabi::Function {
 						name: #name.into(),
 						inputs: #recreate_inputs,
 						outputs: #recreate_outputs,
@@ -163,30 +163,30 @@ impl Function {
 				}
 
 				/// Generic function output decoder.
-				pub struct Decoder(ethabi::Function);
+				pub struct Decoder(vapabi::Function);
 
-				impl ethabi::FunctionOutputDecoder for Decoder {
+				impl vapabi::FunctionOutputDecoder for Decoder {
 					type Output = #outputs_result;
 
-					fn decode(&self, output: &[u8]) -> ethabi::Result<Self::Output> {
+					fn decode(&self, output: &[u8]) -> vapabi::Result<Self::Output> {
 						#outputs_implementation
 					}
 				}
 
 				/// Encodes function input.
-				pub fn encode_input<#(#declarations),*>(#(#definitions),*) -> ethabi::Bytes {
+				pub fn encode_input<#(#declarations),*>(#(#definitions),*) -> vapabi::Bytes {
 					let f = function();
 					let tokens = vec![#(#tokenize),*];
 					f.encode_input(&tokens).expect(INTERNAL_ERR)
 				}
 
 				/// Decodes function output.
-				pub fn decode_output(output: &[u8]) -> ethabi::Result<#outputs_result> {
-					ethabi::FunctionOutputDecoder::decode(&Decoder(function()), output)
+				pub fn decode_output(output: &[u8]) -> vapabi::Result<#outputs_result> {
+					vapabi::FunctionOutputDecoder::decode(&Decoder(function()), output)
 				}
 
 				/// Encodes function output and creates a `Decoder` instance.
-				pub fn call<#(#declarations),*>(#(#definitions),*) -> (ethabi::Bytes, Decoder) {
+				pub fn call<#(#declarations),*>(#(#definitions),*) -> (vapabi::Bytes, Decoder) {
 					let f = function();
 					let tokens = vec![#(#tokenize),*];
 					(f.encode_input(&tokens).expect(INTERNAL_ERR), Decoder(f))
@@ -198,27 +198,27 @@ impl Function {
 
 #[cfg(test)]
 mod tests {
-	use ethabi;
+	use vapabi;
 	use super::Function;
 
 	#[test]
 	fn test_no_params() {
-		let ethabi_function = ethabi::Function {
+		let vapabi_function = vapabi::Function {
 			name: "empty".into(),
 			inputs: vec![],
 			outputs: vec![],
 			constant: false,
 		};
 
-		let f = Function::from(&ethabi_function);
+		let f = Function::from(&vapabi_function);
 
 		let expected = quote! {
 			pub mod empty {
-				use ethabi;
+				use vapabi;
 				use super::INTERNAL_ERR;
 
-				fn function() -> ethabi::Function {
-					ethabi::Function {
+				fn function() -> vapabi::Function {
+					vapabi::Function {
 						name: "empty".into(),
 						inputs: vec![],
 						outputs: vec![],
@@ -227,31 +227,31 @@ mod tests {
 				}
 
 				/// Generic function output decoder.
-				pub struct Decoder(ethabi::Function);
+				pub struct Decoder(vapabi::Function);
 
-				impl ethabi::FunctionOutputDecoder for Decoder {
+				impl vapabi::FunctionOutputDecoder for Decoder {
 					type Output = ();
 
-					fn decode(&self, output: &[u8]) -> ethabi::Result<Self::Output> {
+					fn decode(&self, output: &[u8]) -> vapabi::Result<Self::Output> {
 						let _output = output;
 						Ok(())
 					}
 				}
 
 				/// Encodes function input.
-				pub fn encode_input<>() -> ethabi::Bytes {
+				pub fn encode_input<>() -> vapabi::Bytes {
 					let f = function();
 					let tokens = vec![];
 					f.encode_input(&tokens).expect(INTERNAL_ERR)
 				}
 
 				/// Decodes function output.
-				pub fn decode_output(output: &[u8]) -> ethabi::Result<()> {
-					ethabi::FunctionOutputDecoder::decode(&Decoder(function()), output)
+				pub fn decode_output(output: &[u8]) -> vapabi::Result<()> {
+					vapabi::FunctionOutputDecoder::decode(&Decoder(function()), output)
 				}
 
 				/// Encodes function output and creates a `Decoder` instance.
-				pub fn call<>() -> (ethabi::Bytes, Decoder) {
+				pub fn call<>() -> (vapabi::Bytes, Decoder) {
 					let f = function();
 					let tokens = vec![];
 					(f.encode_input(&tokens).expect(INTERNAL_ERR), Decoder(f))
@@ -264,73 +264,73 @@ mod tests {
 
 	#[test]
 	fn test_one_param() {
-		let ethabi_function = ethabi::Function {
+		let vapabi_function = vapabi::Function {
 			name: "hello".into(),
 			inputs: vec![
-				ethabi::Param {
+				vapabi::Param {
 					name: "foo".into(),
-					kind: ethabi::ParamType::Address,
+					kind: vapabi::ParamType::Address,
 				}
 			],
 			outputs: vec![
-				ethabi::Param {
+				vapabi::Param {
 					name: "bar".into(),
-					kind: ethabi::ParamType::Uint(256),
+					kind: vapabi::ParamType::Uint(256),
 				}
 			],
 			constant: false,
 		};
 
-		let f = Function::from(&ethabi_function);
+		let f = Function::from(&vapabi_function);
 
 		let expected = quote! {
 			pub mod hello {
-				use ethabi;
+				use vapabi;
 				use super::INTERNAL_ERR;
 
-				fn function() -> ethabi::Function {
-					ethabi::Function {
+				fn function() -> vapabi::Function {
+					vapabi::Function {
 						name: "hello".into(),
-						inputs: vec![ethabi::Param {
+						inputs: vec![vapabi::Param {
 							name: "foo".to_owned(),
-							kind: ethabi::ParamType::Address
+							kind: vapabi::ParamType::Address
 						}],
-						outputs: vec![ethabi::Param {
+						outputs: vec![vapabi::Param {
 							name: "bar".to_owned(),
-							kind: ethabi::ParamType::Uint(256usize)
+							kind: vapabi::ParamType::Uint(256usize)
 						}],
 						constant: false,
 					}
 				}
 
 				/// Generic function output decoder.
-				pub struct Decoder(ethabi::Function);
+				pub struct Decoder(vapabi::Function);
 
-				impl ethabi::FunctionOutputDecoder for Decoder {
-					type Output = ethabi::Uint;
+				impl vapabi::FunctionOutputDecoder for Decoder {
+					type Output = vapabi::Uint;
 
-					fn decode(&self, output: &[u8]) -> ethabi::Result<Self::Output> {
+					fn decode(&self, output: &[u8]) -> vapabi::Result<Self::Output> {
 						let out = self.0.decode_output(output)?.into_iter().next().expect(INTERNAL_ERR);
 						Ok(out.to_uint().expect(INTERNAL_ERR))
 					}
 				}
 
 				/// Encodes function input.
-				pub fn encode_input<T0: Into<ethabi::Address> >(foo: T0) -> ethabi::Bytes {
+				pub fn encode_input<T0: Into<vapabi::Address> >(foo: T0) -> vapabi::Bytes {
 					let f = function();
-					let tokens = vec![ethabi::Token::Address(foo.into())];
+					let tokens = vec![vapabi::Token::Address(foo.into())];
 					f.encode_input(&tokens).expect(INTERNAL_ERR)
 				}
 
 				/// Decodes function output.
-				pub fn decode_output(output: &[u8]) -> ethabi::Result<ethabi::Uint> {
-					ethabi::FunctionOutputDecoder::decode(&Decoder(function()), output)
+				pub fn decode_output(output: &[u8]) -> vapabi::Result<vapabi::Uint> {
+					vapabi::FunctionOutputDecoder::decode(&Decoder(function()), output)
 				}
 
 				/// Encodes function output and creates a `Decoder` instance.
-				pub fn call<T0: Into<ethabi::Address> >(foo: T0) -> (ethabi::Bytes, Decoder) {
+				pub fn call<T0: Into<vapabi::Address> >(foo: T0) -> (vapabi::Bytes, Decoder) {
 					let f = function();
-					let tokens = vec![ethabi::Token::Address(foo.into())];
+					let tokens = vec![vapabi::Token::Address(foo.into())];
 					(f.encode_input(&tokens).expect(INTERNAL_ERR), Decoder(f))
 				}
 			}
@@ -341,98 +341,98 @@ mod tests {
 
 	#[test]
 	fn test_multiple_params() {
-		let ethabi_function = ethabi::Function {
+		let vapabi_function = vapabi::Function {
 			name: "multi".into(),
 			inputs: vec![
-				ethabi::Param {
+				vapabi::Param {
 					name: "foo".into(),
-					kind: ethabi::ParamType::FixedArray(Box::new(ethabi::ParamType::Address), 2),
+					kind: vapabi::ParamType::FixedArray(Box::new(vapabi::ParamType::Address), 2),
 				},
-				ethabi::Param {
+				vapabi::Param {
 					name: "bar".into(),
-					kind: ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(256))),
+					kind: vapabi::ParamType::Array(Box::new(vapabi::ParamType::Uint(256))),
 				}
 			],
 			outputs: vec![
-				ethabi::Param {
+				vapabi::Param {
 					name: "".into(),
-					kind: ethabi::ParamType::Uint(256),
+					kind: vapabi::ParamType::Uint(256),
 				},
-				ethabi::Param {
+				vapabi::Param {
 					name: "".into(),
-					kind: ethabi::ParamType::String,
+					kind: vapabi::ParamType::String,
 				}
 			],
 			constant: false,
 		};
 
-		let f = Function::from(&ethabi_function);
+		let f = Function::from(&vapabi_function);
 
 		let expected = quote! {
 			pub mod multi {
-				use ethabi;
+				use vapabi;
 				use super::INTERNAL_ERR;
 
-				fn function() -> ethabi::Function {
-					ethabi::Function {
+				fn function() -> vapabi::Function {
+					vapabi::Function {
 						name: "multi".into(),
-						inputs: vec![ethabi::Param {
+						inputs: vec![vapabi::Param {
 							name: "foo".to_owned(),
-							kind: ethabi::ParamType::FixedArray(Box::new(ethabi::ParamType::Address), 2usize)
-						}, ethabi::Param {
+							kind: vapabi::ParamType::FixedArray(Box::new(vapabi::ParamType::Address), 2usize)
+						}, vapabi::Param {
 							name: "bar".to_owned(),
-							kind: ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(256usize)))
+							kind: vapabi::ParamType::Array(Box::new(vapabi::ParamType::Uint(256usize)))
 						}],
-						outputs: vec![ethabi::Param {
+						outputs: vec![vapabi::Param {
 							name: "".to_owned(),
-							kind: ethabi::ParamType::Uint(256usize)
-						}, ethabi::Param {
+							kind: vapabi::ParamType::Uint(256usize)
+						}, vapabi::Param {
 							name: "".to_owned(),
-							kind: ethabi::ParamType::String
+							kind: vapabi::ParamType::String
 						}],
 						constant: false,
 					}
 				}
 
 				/// Generic function output decoder.
-				pub struct Decoder(ethabi::Function);
+				pub struct Decoder(vapabi::Function);
 
-				impl ethabi::FunctionOutputDecoder for Decoder {
-					type Output = (ethabi::Uint, String);
+				impl vapabi::FunctionOutputDecoder for Decoder {
+					type Output = (vapabi::Uint, String);
 
-					fn decode(&self, output: &[u8]) -> ethabi::Result<Self::Output> {
+					fn decode(&self, output: &[u8]) -> vapabi::Result<Self::Output> {
 						let mut out = self.0.decode_output(output)?.into_iter();
 						Ok((out.next().expect(INTERNAL_ERR).to_uint().expect(INTERNAL_ERR), out.next().expect(INTERNAL_ERR).to_string().expect(INTERNAL_ERR)))
 					}
 				}
 
 				/// Encodes function input.
-				pub fn encode_input<T0: Into<[U0; 2usize]>, U0: Into<ethabi::Address>, T1: IntoIterator<Item = U1>, U1: Into<ethabi::Uint> >(foo: T0, bar: T1) -> ethabi::Bytes {
+				pub fn encode_input<T0: Into<[U0; 2usize]>, U0: Into<vapabi::Address>, T1: IntoIterator<Item = U1>, U1: Into<vapabi::Uint> >(foo: T0, bar: T1) -> vapabi::Bytes {
 					let f = function();
 					let tokens = vec![{
-						let v = (Box::new(foo.into()) as Box<[_]>).into_vec().into_iter().map(Into::into).collect::<Vec<_>>().into_iter().map(|inner| ethabi::Token::Address(inner)).collect();
-						ethabi::Token::FixedArray(v)
+						let v = (Box::new(foo.into()) as Box<[_]>).into_vec().into_iter().map(Into::into).collect::<Vec<_>>().into_iter().map(|inner| vapabi::Token::Address(inner)).collect();
+						vapabi::Token::FixedArray(v)
 					}, {
-						let v = bar.into_iter().map(Into::into).collect::<Vec<_>>().into_iter().map(|inner| ethabi::Token::Uint(inner)).collect();
-						ethabi::Token::Array(v)
+						let v = bar.into_iter().map(Into::into).collect::<Vec<_>>().into_iter().map(|inner| vapabi::Token::Uint(inner)).collect();
+						vapabi::Token::Array(v)
 					}];
 					f.encode_input(&tokens).expect(INTERNAL_ERR)
 				}
 
 				/// Decodes function output.
-				pub fn decode_output(output: &[u8]) -> ethabi::Result<(ethabi::Uint, String)> {
-					ethabi::FunctionOutputDecoder::decode(&Decoder(function()), output)
+				pub fn decode_output(output: &[u8]) -> vapabi::Result<(vapabi::Uint, String)> {
+					vapabi::FunctionOutputDecoder::decode(&Decoder(function()), output)
 				}
 
 				/// Encodes function output and creates a `Decoder` instance.
-				pub fn call<T0: Into<[U0; 2usize]>, U0: Into<ethabi::Address>, T1: IntoIterator<Item = U1>, U1: Into<ethabi::Uint> >(foo: T0, bar: T1) -> (ethabi::Bytes, Decoder) {
+				pub fn call<T0: Into<[U0; 2usize]>, U0: Into<vapabi::Address>, T1: IntoIterator<Item = U1>, U1: Into<vapabi::Uint> >(foo: T0, bar: T1) -> (vapabi::Bytes, Decoder) {
 					let f = function();
 					let tokens = vec![{
-						let v = (Box::new(foo.into()) as Box<[_]>).into_vec().into_iter().map(Into::into).collect::<Vec<_>>().into_iter().map(|inner| ethabi::Token::Address(inner)).collect();
-						ethabi::Token::FixedArray(v)
+						let v = (Box::new(foo.into()) as Box<[_]>).into_vec().into_iter().map(Into::into).collect::<Vec<_>>().into_iter().map(|inner| vapabi::Token::Address(inner)).collect();
+						vapabi::Token::FixedArray(v)
 					}, {
-						let v = bar.into_iter().map(Into::into).collect::<Vec<_>>().into_iter().map(|inner| ethabi::Token::Uint(inner)).collect();
-						ethabi::Token::Array(v)
+						let v = bar.into_iter().map(Into::into).collect::<Vec<_>>().into_iter().map(|inner| vapabi::Token::Uint(inner)).collect();
+						vapabi::Token::Array(v)
 					}];
 					(f.encode_input(&tokens).expect(INTERNAL_ERR), Decoder(f))
 				}
